@@ -25,7 +25,7 @@
 
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <Adafruit_PWMServoDriver.h>
+#include <Servo.h>
 
 /* LCD INIT */
 LiquidCrystal_I2C lcd(0x27,16,2);
@@ -37,34 +37,27 @@ const int buttonPin1 = 2;  //button 1
 const int buttonPin2 = 3;  //button 2
 const int buttonPin3 = 4;  //button 3
 const int buttonPin4 = 5;  //button 4
-int count1 = 0;
-int count2 = 0;
-int count3 = 0;
-int count4 = 0;
+int count1 = 0;  //digit counter for button 1
+int count2 = 0;  //digit counter for button 2
+int count3 = 0;  //digit counter for button 3
+int count4 = 0;  //digit counter for button 4
 int buttonState1 = 0;
 int buttonState2 = 0;
 int buttonState3 = 0;
 int buttonState4 = 0;
 
 /* SERVO INIT */
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40, Wire);
-#define SERVOMIN  150 // This is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  600 // This is the 'maximum' pulse length count (out of 4096)
-#define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
-uint8_t servonum1 = 0;
-uint8_t servonum2 = 1;
-//uint16_t leftservopos = SERVOMIN; 
-//uint16_t rightservopos = SERVOMAX; 
+Servo leftservo;
+Servo rightservo;
+int servomin = 0;  //servo minimal position
+int servomax = 180; //servo maximum position
+int posquick = 10;  //servo speedboost position
+int endpos = 90;  //briefcase fully open position
+int pos = 0; //briefcase smooth opening counter
 
 void setup()
 {
   Serial.begin(9600);
-  pwm.begin();
-  pwm.setOscillatorFrequency(27000000);
-  pwm.setPWMFreq(SERVO_FREQ);
-  pwm.setPWM(servonum1, 0, SERVOMIN);
-  pwm.setPWM(servonum2, 0, SERVOMAX);
-  
   lcd.init();
   lcd.backlight();
   lcd.setCursor(2,0);
@@ -77,6 +70,12 @@ void setup()
   pinMode(buttonPin2, INPUT);
   pinMode(buttonPin3, INPUT);
   pinMode(buttonPin4, INPUT);
+
+  //initialize servo connection and set them in start position
+  leftservo.attach(8);  
+  rightservo.attach(9); 
+  leftservo.write(servomin); // here should be a check what the angle of the lid is now.
+  rightservo.write(servomax);
 }
 
 void loop()
@@ -169,25 +168,22 @@ void loop()
     lcd.print("CASE OPENING !!!");
     delay(1200);
   }
-    /* OPENING BRIEFCASE SERVOS*/  
-  pwm.setPWM(servonum1, 0, SERVOMAX);
-  pwm.setPWM(servonum2, 0, SERVOMIN);
-     /* 
-    rightservopos = SERVOMAX;              
-    for (leftservopos = SERVOMIN; leftservopos < SERVOMAX; leftservopos++) {
-        pwm.setPWM(servonum1, 0, leftservopos);
-        pwm.setPWM(servonum2, 0, rightservopos);
-        Serial.println(leftservopos);
-        Serial.println(rightservopos);
-        rightservopos--;
-    }
-    */ 
+  
+  /* OPENING BRIEFCASE SERVOS*/  
+  leftservo.write(servomin+posquick);
+  rightservo.write(servomax-posquick); 
+
+  for (pos = 0; pos <= (endpos-posquick); pos += 1) { 
+    leftservo.write(servomin+posquick+pos);
+    rightservo.write(servomax-posquick-pos);
+    delay(40);                                  
+  }
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("BRIEFCASE OPENED");
   lcd.setCursor(4,1);
   lcd.print("HAVE FUN");
-  delay(2000);
+  delay(5000); // just a delay to have a little break for the moment.
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("CASE IS CLOSING");
@@ -195,18 +191,17 @@ void loop()
   lcd.print("GOOD BYE");
 
   /* CLOSING BRIEFCASE SERVOS*/
-  pwm.setPWM(servonum1, 0, SERVOMIN);
-  pwm.setPWM(servonum2, 0, SERVOMAX);
-  /* 
-  rightservopos = SERVOMIN;
-  for (leftservopos = SERVOMAX; leftservopos > SERVOMIN; leftservopos--) {
-        pwm.setPWM(servonum1, 0, leftservopos);
-        pwm.setPWM(servonum2, 0, rightservopos);
-        Serial.println(leftservopos);
-        Serial.println(rightservopos);
-        rightservopos++;
+  for (pos = (endpos-posquick); pos >= 0; pos -= 1) { 
+    leftservo.write(servomin+posquick+pos); 
+    rightservo.write(servomax-posquick-pos);      
+    delay(40);          
   }
-  */
+  for (pos = posquick; pos >= servomin; pos -= 1) { 
+    leftservo.write(servomin+pos); 
+    rightservo.write(servomax-pos);      
+    delay(10);          
+  }
+
   // Reset Code
   usercode = 0000;
   count1 = 0; 
