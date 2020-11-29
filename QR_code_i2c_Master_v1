@@ -1,0 +1,12 @@
+#include <Wire.h>
+
+void setup() {
+  Wire.begin(); 
+}
+
+void loop() {
+  Wire.beginTransmission(8); 
+  Wire.write("www.mariokuijpers.com");           
+  Wire.endTransmission();   
+  delay(8000);
+}
