@@ -1,0 +1,87 @@
+/*______________________________
+      
+       100% Marinaat Warez
+  ______________________________
+
+  project: QR CODE DISPLAY
+  startdate: 21/11/2020 
+ 
+  240x240 IPS DISPLAY CONNECTIONS:
+  GND-GND | VCC-5V | SCL-13 | SDA-11 | RES-8 | DC-9 | BLK-5V
+*/
+#include <Wire.h>
+#include "qrcode.h"
+#include <Adafruit_ST7789.h> // Hardware-specific library for ST7789 display
+
+/* Display Pins */
+#define TFT_CS    10  // define chip select pin
+#define TFT_DC     9  // define data/command pin
+#define TFT_RST    8  // define reset pin, or set to -1 and connect to Arduino RESET pin
+ 
+/*Initialize Adafruit ST7789 TFT library */
+Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
+
+QRCode qrcode;
+String code = "";
+int teller =0;
+int displaytime = 0;
+
+void setup(void) {
+  Serial.begin (9600);
+  /* I2C Settings */
+  Wire.begin (8);                 // Join I2C on Address 8
+  Wire.onReceive (receiveEvent);  // Interrupt handler for incoming data
+
+ /* Display Settings */
+ tft.init(240, 240, SPI_MODE2);  // Init ST7789 display 240x240 pixel
+ tft.setRotation(2); 
+ tft.setTextColor(ST77XX_WHITE);
+ 
+  /* Initial Reset QR-Code and display */
+ // tft.fillScreen(ST77XX_BLACK); // Clear Screen
+ // tft.enableDisplay(false);  // Display off when there is no code
+}
+
+void receiveEvent(int howMany) {
+  while (Wire.available())  { // loop through all but the last
+    char c = Wire.read(); // receive byte as a character
+    code += c;
+  }
+}
+
+/* Generate QR-code and send to Display */
+void generateQRcode(String code, int displaytime) {
+
+    tft.enableDisplay(false);  // Display off while building code
+    tft.fillScreen(ST77XX_BLACK); // Clear Screen
+    uint8_t qrcodeData[qrcode_getBufferSize(3)];
+    qrcode_initText(&qrcode, qrcodeData, 3, 0, code.c_str());
+     
+    /* send QR-code to display */
+    int offsetX = 0;
+    int offsetY = 0;
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+      offsetX = 0;
+        for (uint8_t x = 0; x < qrcode.size; x++) {
+          if (qrcode_getModule(&qrcode, x, y)) {
+            tft.drawRect(x + offsetX, y + offsetY, 8, 8, ST77XX_WHITE);
+            tft.fillRect(x + offsetX, y + offsetY, 8, 8, ST77XX_WHITE);
+          }
+          offsetX+=7;
+        }
+        offsetY+=7;
+    }
+      tft.enableDisplay(true);
+      delay(displaytime);
+      tft.enableDisplay(false); 
+      code="";
+    }
+ 
+void loop() {
+  if (code != "") {
+    Serial.println(code);
+    generateQRcode(code,5000);
+    code="";
+    delay(500);
+  }
+}
